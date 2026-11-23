@@ -1,7 +1,7 @@
 # 喜鹊助手 · 需求摘要
 
 > status: 已批准（2026-10-25，阶段1定稿）
-> last_updated: 2026-11-15（新增 §10 待开发功能详录 · 10.1 快速检索来电归属）
+> last_updated: 2026-11-23（开发环境表述更正：macOS 为开发机，Windows 为交付/验收目标机）
 
 ## 1. 问题陈述
 
@@ -18,7 +18,7 @@
 
 ## 2. 目标用户
 
-- v1 用户：作者本人。开发机 macOS，交付与验收机 Windows。
+- v1 用户：作者本人。**日常开发机是 macOS，交付与验收目标机是 Windows**（旧稿以 Windows 为默认开发前提的表述已更正，见 PLAN §3.5）。
 - 非目标：多人协作、团队权限、外部商业化用户。
 
 ## 3. 核心需求与优先级
@@ -59,10 +59,10 @@
 | 项 | 决定 |
 |----|------|
 | 框架 | Tauri 2（Rust 后端 + TypeScript 前端） |
-| 交付平台 | Windows 优先；macOS 保可用但不做验收 |
+| 交付平台 | Windows 优先（交付与验收目标）；macOS 为实际开发环境，保可用但不做验收 |
 | Rust 职责 | 系统集成薄层（全局热键、窗口显隐、托盘、打开/定位文件）、本地搜索厚模块（Everything FFI）、模型网关（Key 管理与流式代理） |
 | TS 职责 | 搜索调度器状态机、全部 UI、小程序注册表、计算器逻辑 |
-| 平台隔离 | 所有平台专属代码必须用 `cfg(target_os)` 隔离；**主开发机可在 macOS 与 Windows 之间切换**，两端都必须能 `cargo check` 通过 |
+| 平台隔离 | 所有平台专属代码必须用 `cfg(target_os)` 隔离，**且只集中在少数几个文件**（热键 `_win.rs`、搜索 `everything_win.rs`、`window.rs` 的 `cfg(windows)` 分支）；macOS 为开发机、Windows 为验收机。macOS 上 `cargo check` 只覆盖跨平台模块，Windows 专属代码由验收机兜底编译；同源码双端可编译 |
 | 构建链路 | 各平台本地构建，不做交叉编译；源码经 git 同步，不在坚果云目录内跑构建（排除 `node_modules/`、`target/`、`dist/`） |
 | 密钥 | API Key 存系统凭据库（Windows Credential Manager / macOS Keychain），不下发到前端 |
 | 模型 | DeepSeek，OpenAI 兼容接口，Key 已具备 |
@@ -191,7 +191,7 @@ HUD：
 | 2026-10-25 | 不加 Ctrl+Enter 浏览器退路        | AI 只做直答，时效性问题自行开浏览器                |
 | 2026-10-25 | 翻译全程在悬浮框内完成                | 与火柴一致；只有 AI 搜索使用独立持久窗口             |
 | 2026-10-25 | 每窗口一份 capability，命令与权限同批产出 | Tauri 2 的 ACL 漏配会在运行期静默失败          |
-| 2026-10-25 | 允许 Windows 作为主开发机          | 两端都能完整开发；macOS 在此时只承担编译检查与基础 UI 验证 |
+| 2026-11-23 | 开发环境更正为 macOS，Windows 为交付/验收目标 | 推翻旧稿「Windows 主开发」表述；平台差异隔离在 trait 后，不维护 Windows 开发分叉 |
 
 ## 10. 待开发功能详录
 
