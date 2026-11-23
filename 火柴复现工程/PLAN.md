@@ -355,6 +355,8 @@ dist/
 
 **结论要回写文档**：应用自有 command 在当前 Tauri 版本下是否需要在 capability 中显式声明，M0 用一个最小 command 实测确认，把结果补进本节。文档里不写死未经验证的结论。
 
+> **M0 实测结论（2026-11-23，Tauri 2.12.7）**：应用自有 `#[tauri::command]` **不需要**在 capability 中逐条声明，也不要写 `app:allow-<command>`——这类权限标识并不存在，`cargo check` 的 build script 会直接报错 `Permission app:allow-greet not found, expected one of core:...`。最小可用配置是：每份 capability 保留 `core:default`（按窗口需要再补 `core:window:allow-*` 等核心权限），应用自有 command 即可被前端 `invoke`。因此 §3.11 第 3 步「涉及核心或插件能力时补 allow」只对核心/插件命令适用；新增自有 command 仍需完成生成类型与前端统一封装两步，并在目标窗口实机冒烟一次。
+
 ### 3.12 禁止事项
 
 - 不在坚果云同步目录里跑完整构建（`target/` 会产出数 GB 并参与同步）
