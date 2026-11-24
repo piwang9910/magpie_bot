@@ -10,6 +10,15 @@ const rootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  // 与 tauri.conf.json 的 devUrl 对齐：Tauri dev 只认 1420，端口被占用时快速失败而不是静默换端口。
+  server: {
+    host: "127.0.0.1",
+    port: 1420,
+    strictPort: true,
+    watch: {
+      ignored: ["**/src-tauri/**"],
+    },
+  },
   build: {
     rollupOptions: {
       input: {

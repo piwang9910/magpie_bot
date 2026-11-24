@@ -41,6 +41,9 @@ pub fn create_backend(kind: HotkeyBackendKind) -> Arc<dyn HotkeyBackend> {
         HotkeyBackendKind::Hook => Arc::new(win::HookBackend::new()),
         #[cfg(target_os = "windows")]
         HotkeyBackendKind::Reghotkey => Arc::new(win::RegHotkeyBackend::new()),
+        // 设置里存的是 macOS 后端时（跨机器同步设置文件），Windows 回退到 reghotkey。
+        #[cfg(target_os = "windows")]
+        HotkeyBackendKind::Mac => Arc::new(win::RegHotkeyBackend::new()),
         #[cfg(target_os = "macos")]
         HotkeyBackendKind::Hook => Arc::new(mac::MacBackend::new("hook-fallback")),
         #[cfg(target_os = "macos")]
