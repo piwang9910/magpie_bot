@@ -18,7 +18,7 @@ path = "src/main.rs"
 tauri-build = { version = "2.7.6", features = [] }
 
 [dependencies]
-tauri = { version = "2.12.7", features = ["tray-icon"] }
+tauri = { version = "2.12.7", features = ["tray-icon", "image-png"] }
 tauri-plugin-single-instance = "2.5.5"
 tauri-plugin-global-shortcut = "2.4.1"
 serde = { version = "1.0.229", features = ["derive"] }

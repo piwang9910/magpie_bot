@@ -41,7 +41,7 @@ pub fn create_backend(kind: HotkeyBackendKind) -> Arc<dyn HotkeyBackend> {
         HotkeyBackendKind::Hook => Arc::new(win::HookBackend::new()),
         #[cfg(target_os = "windows")]
         HotkeyBackendKind::Reghotkey => Arc::new(win::RegHotkeyBackend::new()),
-        // 设置里存的是 macOS 后端时（跨机器同步设置文件），Windows 回退到 reghotkey。
+        // 设置里存的是 macOS 平台后端时（跨机器同步设置文件），Windows 回退到 reghotkey。
         #[cfg(target_os = "windows")]
         HotkeyBackendKind::Mac => Arc::new(win::RegHotkeyBackend::new()),
         #[cfg(target_os = "macos")]
@@ -57,7 +57,7 @@ pub fn create_backend(kind: HotkeyBackendKind) -> Arc<dyn HotkeyBackend> {
     }
 }
 
-/// 开发机（macOS）后端：M0 只搭骨架，真键位监听在后续里程碑接入。
+/// macOS 平台后端：M0 只搭骨架，真键位监听在后续里程碑接入。
 /// 目前 start 只记录日志并返回成功，回调可通过 `trigger_for_dev()` 手动触发以冒烟。
 #[cfg(target_os = "macos")]
 pub mod mac {

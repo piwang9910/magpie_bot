@@ -42,9 +42,8 @@ export const DEFAULT_TRANSLATE_TRIGGERS = ["fy", "翻译"];
 
 export type SchedulerEvent =
   | { type: "INPUT"; text: string; triggers?: string[] }
-  | { type: "TOGGLE_AI" } // Tab / Ctrl+Tab
-  | { type: "BACK_TO_LOCAL" } // Esc 从 AI 回本地
-  | { type: "CLEAR" } // Esc 清空；已空则隐藏
+  | { type: "TOGGLE_AI" } // Tab / Ctrl+Tab：AI 态 ↔ 本地态互换
+  | { type: "CLEAR" } // Esc 清空文本；文本已空时由组件层调用 hideHud 收起 HUD
   | { type: "RESET" }; // 窗口隐藏后复位
 
 /** 判定翻译触发词：返回剥离后的文本与触发词。 */
@@ -79,17 +78,11 @@ export function schedulerReducer(
       return EMPTY_STATE;
 
     case "TOGGLE_AI":
-      // Tab：本地态切 AI；AI 态切回本地（由 BACK_TO_LOCAL 亦可）。
+      // Tab：本地态切 AI；AI 态切回本地。
       if (state.kind === "ai") {
         return { kind: "local", text: state.text };
       }
       return { kind: "ai", text: state.text };
-
-    case "BACK_TO_LOCAL":
-      if (state.kind === "ai") {
-        return { kind: "local", text: state.text };
-      }
-      return state;
 
     case "INPUT": {
       const text = event.text;

@@ -42,21 +42,11 @@ pub fn run() {
             // 第二个实例启动时，直接唤出已有实例的 HUD。
             window::show_hud(app);
         }))
-        // M0 可演示路径：注册 Alt+Space 全局快捷键，两端均可唤出 HUD。
-        // 这与设置里的 reghotkey 后端一致；双击 Ctrl 钩子仍是独立后端，待 M1 实现。
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcut("Alt+Space")
-                .expect("register Alt+Space shortcut")
-                .with_handler(|app, _shortcut, event| {
-                    use tauri_plugin_global_shortcut::ShortcutState;
-                    if event.state == ShortcutState::Pressed {
-                        info!("全局快捷键 Alt+Space → 唤出 HUD");
-                        window::show_hud(app);
-                    }
-                })
-                .build(),
-        )
+        // M0 可演示路径：注册全局快捷键唤出 HUD。
+        // 首选 Alt+Space（与设置里的 reghotkey 后端一致）；Windows 下该组合被系统
+        // 窗口菜单占用，注册失败时按候选链回退，绝不因快捷键冲突阻断启动。
+        // 双击 Ctrl 钩子仍是独立后端，待 M1 实现。
+        .plugin(global_shortcut_plugin())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -85,6 +75,9 @@ pub fn run() {
             // 托盘常驻：点击左键唤出 HUD，双击/右键退出。
             build_tray(app)?;
 
+            // 全局快捷键在运行期注册：注册失败只告警，不影响启动。
+            register_global_shortcut(app);
+
             info!("喜鹊助手 M0 骨架启动完成");
             Ok(())
         })
@@ -92,7 +85,47 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-/// 构建系统托盘。图标为 M0 占位（一个 1x1 透明 PNG），功能只要求"托盘常驻"。
+/// 全局快捷键候选，按优先级排列。
+///
+/// Windows 上 Alt+Space 被系统窗口菜单占用，注册通常失败，需要回退到下一候选。
+const SHORTCUT_CANDIDATES: [&str; 3] = ["Alt+Space", "Ctrl+Alt+Space", "Alt+Q"];
+
+/// 构建全局快捷键插件：这里只装处理器，真正注册推迟到 setup。
+///
+/// `Builder::with_shortcut` 会在插件初始化阶段注册，冲突时让整个应用 panic 退出，
+/// 无法用来做候选回退；因此注册改由 [`register_global_shortcut`] 在运行期完成。
+fn global_shortcut_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    tauri_plugin_global_shortcut::Builder::new()
+        .with_handler(|app, _shortcut, event| {
+            use tauri_plugin_global_shortcut::ShortcutState;
+            if event.state == ShortcutState::Pressed {
+                info!("全局快捷键触发 → 唤出 HUD");
+                window::show_hud(app);
+            }
+        })
+        .build()
+}
+
+/// 在运行期按候选链注册全局快捷键；全部失败也只告警，托盘与单实例唤出仍可用。
+fn register_global_shortcut(app: &tauri::App) {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    let shortcuts = app.global_shortcut();
+    for accel in SHORTCUT_CANDIDATES {
+        match shortcuts.register(accel) {
+            Ok(()) => {
+                info!(shortcut = accel, "全局快捷键已注册");
+                return;
+            }
+            Err(err) => {
+                tracing::warn!(shortcut = accel, error = %err, "全局快捷键注册失败，尝试下一个候选");
+            }
+        }
+    }
+    tracing::warn!("所有候选全局快捷键均注册失败；仍可通过托盘或二次启动唤出 HUD");
+}
+
+/// 构建系统托盘。左键唤出 HUD，菜单提供显示/退出。
 fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::menu::{Menu, MenuItem};
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -101,8 +134,13 @@ fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
 
+    // 托盘图标：用真实图标而不是 1×1 透明占位，否则 Windows 通知区域显示为空白。
+    // 解码失败时才回退到透明占位，避免图标问题阻断启动。
+    let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))
+        .unwrap_or_else(|_| tauri::image::Image::new_owned(vec![0, 0, 0, 0], 1, 1));
+
     let _tray = TrayIconBuilder::with_id("main")
-        .icon(tauri::image::Image::new_owned(vec![0, 0, 0, 0], 1, 1))
+        .icon(tray_icon)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id().as_ref() {

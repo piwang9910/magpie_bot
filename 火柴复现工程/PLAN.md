@@ -5,14 +5,14 @@ last_updated: 2026-11-23
 
 # 喜鹊助手 · 实施计划
 
-> 本版三条修订主线（依据用户 2026-11-23 的初始化要求）：
-> 1. **开发环境更正**：实际开发环境是 **macOS**，不是旧稿默认前提里的 Windows。Windows 是**交付与验收目标**，不是日常开发机。
+> 本版修订主线（依据用户 2026-11-23 初始化要求；2026-11-25 再更正开发环境）：
+> 1. **开发环境更正（2026-11-25）**：实际开发、测试与验收环境统一为 **Windows 主机**。旧稿「Windows 只是验收机 / macOS 是开发机」的表述作废；macOS 仅保留**可迁移性**目标（同源码可编译、可运行，能力可弱于 Windows）。
 > 2. **文档整合**：把《资料备份.md》里的架构原始素材、《岛仔显示联动可行性》里可落地的结论，合并进本计划与 CONTEXT，避免同一结论散落多处。
 > 3. **框架先行**：先把预留框架与接口搭起来，再一个功能一个功能实现；P2 能力只留接口位，不写实现。
 
 ## 1. 背景与目标
 
-以火柴/火萤酱的悬浮入口为形态，做一个**Windows 优先交付、macOS 上开发**的桌面效率工具。核心是**一个输入框、四种去向**：本地文件/程序、计算器、翻译、AI 直答。
+以火柴/火萤酱的悬浮入口为形态，做一个**Windows 主机开发、测试与交付，并保留 macOS 可迁移性**的桌面效率工具。核心是**一个输入框、四种去向**：本地文件/程序、计算器、翻译、AI 直答。
 
 需求来源：[REQUIREMENTS.md](./REQUIREMENTS.md)（已批准，含 2026-11-23 环境表述修订）。术语定义：[CONTEXT.md](./CONTEXT.md)。架构原始素材：[资料备份.md](./资料备份.md)（已整合，保留作历史留档）。形态参考结论：[岛仔显示联动可行性_2026-11-12.md](./岛仔显示联动可行性_2026-11-12.md)（已整合可落地部分）。
 
@@ -22,7 +22,7 @@ last_updated: 2026-11-23
 
 | # | 原则 | 含义 |
 |---|------|------|
-| 1 | 开发环境是 macOS | 日常写码、跑前端、跑单测都在 macOS；Windows 只在需要实机验收时出现 |
+| 1 | 开发环境是 Windows | 日常写码、跑前端、跑单测、`cargo check/test`、实机冒烟与验收都在 Windows 本机完成；macOS 只做可迁移性回归 |
 | 2 | 先 Windows 产品，预留 macOS 可迁移性 | 先实现 Windows 上要交付的行为；平台差异全部隔离在 trait / 接口之后，同一份源码在 macOS 上可编译、可运行（能力可弱于 Windows），不为 macOS 单独分叉 |
 | 3 | 框架先行，逐个实现 | 先搭出调度器骨架、各预留接口与 IPC 契约，再用计算器做第一条竖切冒烟；P2 能力只注册接口位，不写实现 |
 
@@ -46,7 +46,7 @@ last_updated: 2026-11-23
 │  hotkey      热键后端抽象                          │
 │              ├ HookBackend      (Win, 双击 Ctrl)    │
 │              ├ RegHotkeyBackend (Win, Alt+Space)    │
-│              └ MacBackend       (mac, 开发用)       │
+│              └ MacBackend       (mac, 可迁移性)     │
 │  window      HUD / Panel 生命周期、多屏定位          │
 │              └ avoidTop: 140pt（避让顶部信息岛，见 §3.7）│
 │  search      SearchBackend trait                   │
@@ -70,7 +70,7 @@ last_updated: 2026-11-23
 └────────────────────┘  └────────────────────────┘
 ```
 
-关键边界（与火柴一致，不因 macOS 开发而改变）：
+关键边界（与火柴一致，不因开发平台变化而改变）：
 
 - **翻译全程在 HUD 内完成**：触发词 → Enter → 结果卡片出现在结果列表，不弹任何独立窗口。
 - **只有 AI 搜索用独立持久窗口。** 面板只服务 AI 问答与追问，不承载翻译、计算器、本地结果。
@@ -81,12 +81,12 @@ last_updated: 2026-11-23
 
 ### 3.2 技术栈（具体到依赖）
 
-**脚手架**（一次性，在 macOS 上执行）：
+**脚手架**（一次性，在 Windows PowerShell 上执行）：
 
-```bash
+```powershell
 npm create tauri-app@latest
 # 选项：TypeScript / npm / React / TypeScript
-cd magpie_bot && npm install
+cd magpie_bot; npm install
 ```
 
 **版本与依赖清单**（安装时锁到当时最新稳定版，不追预发布）：
@@ -202,26 +202,26 @@ interface AppSettings {
 
 ### 3.5 开发环境与跨平台约定（本次重点修订）
 
-**实际开发环境是 macOS，Windows 是交付/验收目标机。** 旧稿「两台机器都是完整开发机」「模式 B·Windows 主开发」的表述已作废。
+**实际开发、测试与验收环境统一为 Windows 主机。** 旧稿「macOS 是开发机 / Windows 只做验收」的表述已作废（2026-11-25 更正）。
 
 | 机器 | 角色 | 需要 |
 |---|---|---|
-| **macOS** | **唯一日常开发机**：写码、跑前端、跑单测、`cargo check`（跨平台模块） | Node 20 LTS+、Rust stable（`rustup`）、Xcode Command Line Tools |
-| **Windows** | **交付与验收目标机**：实机验收钩子、多屏、DPI、Everything、打包 | Node 20 LTS+、Rust stable（**MSVC toolchain**）、Visual Studio 2022 Build Tools（勾选"使用 C++ 的桌面开发"）、WebView2 Runtime（Win11 自带）、Everything 安装并常驻 |
+| **Windows（本机）** | **唯一开发+测试+验收机**：写码、跑前端、跑单测、`cargo check`（全量，含 `cfg(windows)`）、实机冒烟与最终验收 | Node 20 LTS+、Rust stable（**MSVC toolchain**）、Visual Studio 2022 Build Tools（勾选"使用 C++ 的桌面开发"）、WebView2 Runtime（Win11 自带）、Everything 安装并常驻（M2 起） |
+| **macOS（可选）** | 仅做**可迁移性回归**：确认跨平台模块 `cargo check` 与前端构建仍通过，不参与验收 | Node 20 LTS+、Rust stable（`rustup`）、Xcode Command Line Tools |
 | 两端 | 同一 git 远端账号，`git config user.name/email` 一致 | — |
 
-开发循环：
+开发循环（全部在 Windows 上完成）：
 
-| 步 | 位置 | 动作 | 产出 |
-|---|---|---|---|
-| 1 | macOS | 认领一个里程碑或子任务 | 一张任务卡 |
-| 2 | macOS | 写代码，`npm run tauri dev` 跑 HUD/Panel | 本地可交互 |
-| 3 | macOS | `npm run test` + `cargo test` + 基础 UI 手测 | 单测绿、布局不炸 |
-| 4 | macOS | commit + push | 远端更新 |
-| 5 | Windows | `git pull && npm ci && cargo check`，必要时 `npm run tauri build -- --debug` 实机验收 | 编译通过 + 真实程序 |
-| 6 | 任一端 | 修问题，回到步 2 | — |
+| 步 | 动作 | 产出 |
+|---|---|---|
+| 1 | 认领一个里程碑或子任务 | 一张任务卡 |
+| 2 | 写代码，`npm run tauri dev` 跑 HUD/Panel | 本地可交互 |
+| 3 | `npm run test` + `cargo test` + 基础 UI 手测 | 单测绿、布局不炸 |
+| 4 | `cargo check`（全量） | 含 `cfg(windows)` 分支的编译结论 |
+| 5 | commit + push | 远端更新 |
+| 6 | 修问题，回到步 2 | — |
 
-**诚实说明**：macOS 上 `cargo check` 只覆盖非平台专属模块；Windows 专属代码（`cfg(windows)`）在 macOS 上会被编译期排除，无法靠它验证。因此 Windows 专属代码必须**少而集中**（仅 §3.6 列出的文件），由 Windows 验收机兜底编译。不追求"在 macOS 上验证 Windows 专属逻辑"，而是靠隔离把风险压到可人工审查的范围。
+**诚实说明**：Windows 上 `cargo check` 覆盖全量代码，`cfg(target_os = "windows")` 分支也能被编译器直接验证——这是把开发机与验收机合并到同一台机器的最大收益。macOS 只覆盖跨平台模块，因此仅作"可迁移性回归"，不作为交付依据。Windows 专属代码仍须**少而集中**（仅 §3.6 列出的文件），以便人工审查。
 
 **跨平台编码约定**：
 
@@ -229,13 +229,13 @@ interface AppSettings {
 |---|---|
 | 路径 | Rust 一律用 `PathBuf` / `std::path`；前端用正斜杠；禁止硬编码 `C:\` 或 `/Users/` |
 | 平台判断 | 只在 Rust 的 trait 实现里分流；前端不允许出现 `if (isWindows)` 这类分支 |
-| 脚本 | `package.json` 只用 Node 脚本（`node scripts/xxx.mjs`），不用 `rm -rf`、`cp` 等 POSIX 命令；需要时用 `rimraf`、`cross-env` |
+| 脚本 | 以 Node 脚本为主（`node scripts/xxx.mjs`）；需要 shell 时用 PowerShell，不再假设 `rm -rf`、`cp` 等 POSIX 命令存在；路径分隔符与中文路径必须实测 |
 | 换行 | 根目录 `.gitattributes` 固定 `* text=auto eol=lf`，避免两端 diff 噪音 |
 | 文件名大小写 | 两端都不敏感，但 git 内改大小写会出错；改名统一用 `git mv` |
-| 视觉验证 | **以 Windows 为准**（交付平台）；macOS 只做布局不炸的检查 |
-| 依赖探测 | macOS 上没有 Everything，Windows 上没有 mdfind；两者都必须能在缺失时优雅降级 |
+| 视觉验证 | **以 Windows 为准**（开发与交付同一平台）；macOS 只做布局不炸的检查 |
+| 依赖探测 | Windows 上 Everything 可能未安装或未运行；macOS 没有 Everything、用 mdfind；两者都必须能在缺失时优雅降级 |
 
-**平台隔离纪律**：Windows 专属代码只出现在 `hotkey/hook_win.rs`、`reghotkey_win.rs`、`search/everything_win.rs`、`window.rs` 的 `cfg(windows)` 分支。其他模块必须两端都能编译。macOS 侧用 `mdfind`（`std::process::Command` 调用）与 `MacBackend` 热键后端，保证"能跑完整链路"，不追求与 Windows 等价的能力。
+**平台隔离纪律**：Windows 专属代码只出现在 `hotkey/hook_win.rs`、`reghotkey_win.rs`、`search/everything_win.rs`、`window.rs` 的 `cfg(windows)` 分支。其他模块必须两端都能编译。macOS 侧用 `mdfind`（`std::process::Command` 调用）与 `MacBackend` 热键后端，仅用于可迁移性回归。
 
 **坚果云忽略规则**（必须设置，否则同步会拖垮机器）：
 
@@ -287,28 +287,30 @@ dist/
 
 | 目的 | 命令 | 机器 |
 |---|---|---|
-| 前端单测 | `npm run test` | macOS |
-| Rust 单测 | `cargo test --manifest-path src-tauri/Cargo.toml` | macOS |
-| 开发模式 | `npm run tauri dev` | macOS |
-| 快检（不打包） | `cargo check`（在 `src-tauri/` 下） | macOS（验跨平台模块）/ Windows（验全量） |
-| Windows 可运行构建 | `npm run tauri build -- --debug` | Windows |
-| Windows 发布构建 | `npm run tauri build` | Windows |
-| 生成 IPC 类型 | `cargo test export_bindings` | macOS |
+| 安装依赖 | `cd 火柴复现工程; npm ci` | Windows |
+| 前端单测 | `npm run test` | Windows |
+| Rust 单测 | `cargo test --manifest-path src-tauri/Cargo.toml` | Windows |
+| 开发模式 | `npm run tauri dev` | Windows |
+| 快检（不打包） | `cargo check --manifest-path src-tauri/Cargo.toml`（全量，含 Windows 分支） | Windows |
+| 可运行构建 | `npm run tauri build -- --debug` | Windows |
+| 发布构建 | `npm run tauri build` | Windows |
+| 生成 IPC 类型 | `cargo test export_bindings` | Windows |
+| 可迁移性回归 | `cargo check`（跨平台模块）+ `npm run build` | macOS（可选，不参与验收） |
 
 ### 3.9 git 约定
 
 - 主干 `main` 始终可编译；开发用短分支 `m2-search` 这类"里程碑号-主题"。
 - 提交信息用 Conventional Commits，正文中文：`feat(search): 接入 Everything IPC 查询`。
 - 每个里程碑关闭时打 tag：`m0`、`m1`……
-- Windows 验收机只做兼容性修正，改完立即 push 回 `main`，不在 Windows 上长期分叉。
+- Windows 验收机已并入开发机：本机 `cargo check` 即全量；macOS 只做可迁移性回归，改动（如有）立即 push 回 `main`，不在 macOS 上长期分叉。
 
 ### 3.10 里程碑门禁（"引导式执行"的具体含义）
 
 每个里程碑同时满足四项才算关闭，缺一项不进入下一阶段：
 
-1. **可演示**：在 macOS 或 Windows 上跑起来，留截图或 30 秒录屏
+1. **可演示**：在 Windows 上跑起来，留截图或 30 秒录屏（macOS 回归可选）
 2. **单测绿**：`npm run test` 与 `cargo test` 全部通过
-3. **对端编译通过**：Windows 验收机上 `cargo check` 无错（macOS 为开发机时验 Windows 专属代码）
+3. **Windows 全量编译通过**：本机 `cargo check` 无错（含 `cfg(windows)` 分支）；macOS 可编译为可选回归
 4. **实测数字**：验收表对应行填入真实测量值
 
 关闭后我会停下来，把四项证据摆给你，你确认再开下一个。
@@ -359,26 +361,26 @@ dist/
 
 ### 3.12 禁止事项
 
-- 不在坚果云同步目录里跑完整构建（`target/` 会产出数 GB 并参与同步）
+- 不在坚果云同步目录里跑完整构建（工程已迁至 `D:\Magpie_Bot_Dev`；`target/` 会产出数 GB 并参与同步）
 - 不在两台机器同时打开同一工程目录
-- 不在 Windows 上重构代码，只修兼容问题
+- 不在 macOS 上做功能开发，只在需要时做可迁移性回归
 - 不把 API Key 写进任何文件、提交历史或日志
 - 不手改 `src/core/ipc/` 下的生成文件
 - **不新增 command 而不更新 capability；不新增窗口而不写 capability**
 - 不写只能在单一平台跑的脚本或硬编码绝对路径
-- 不在未提交改动的情况下切换开发机（Mac 为日常机，Windows 只做验收）
+- 不在未提交改动的情况下切换开发机（Windows 为日常机，macOS 仅做回归）
 
 ## 4. 任务拆分（框架先行，逐个实现）
 
-| # | 里程碑 | 内容 | 依赖 | macOS 上验证 | Windows 验收 | 复杂度 |
+| # | 里程碑 | 内容 | 依赖 | Windows 上验证（开发+验收） | macOS 可迁移性回归（可选） | 复杂度 |
 |---|---|---|---|---|---|---|
-| M0 | 骨架与框架先行 | Tauri 双窗口、capabilities 基线、单实例、托盘、热键后端抽象（含 mac 后端）、设置读写、**调度器空壳与 TriggerRegistry 骨架**、**SearchBackend / gateway / auth / peer 接口定义**、**avoidTop=140pt 常量**、**islandEnabled 设置位与常驻岛窗口骨架（仅结构，无功能）** | 无 | 双击 Ctrl（mac 后端）唤出空 HUD；框架接口编译通过 | 两套热键后端可唤出；钩子是否被安全软件拦；command 在 hud/panel 中均可 invoke | 中 |
-| M1 | 调度器与纯本地能力 | 状态机五态互转、启动器网格、计算器卡片（**第一条竖切**）、IME 组词处理、**两态展开动效** | M0 | 五态互转；`2+2` 出卡片、`2+2会议纪要` 不出；展开动效不丢焦点 | 中文输入法下 Tab/Ctrl+Tab 正常 | 中 |
-| M2 | 本地搜索 | Everything FFI、程序搜索、评分层、打开/定位/复制、降级 | M1 | mdfind 跑通同一接口 | 前 4 字母目标进前 3；未运行 Everything 时降级可用 | 高 |
-| M3 | 会话面板与 AI | 独立窗口、DeepSeek 流式、追问、取消、错误重试 | M1 | 面板可拖动、Esc 关闭回焦 | 首字延迟实测；断网错误态 | 高 |
-| M4 | 翻译 | 触发词、语言自动识别、**全程 HUD 内呈现** | M1 | `fy hello` 在悬浮框出中文结果 | — | 低 |
-| M5 | 主题与 mac 搜索 | 明暗变量、设置页、mdfind 完善 | M2 | 主题切换无闪烁 | 设置项持久化 | 低 |
-| M6 | 全量验证 | 逐条验收、阈值校准、打包 | M2–M5 | — | 验收表 11 条 | 中 |
+| M0 | 骨架与框架先行 | Tauri 双窗口、capabilities 基线、单实例、托盘、热键后端抽象（含 mac 后端）、设置读写、**调度器空壳与 TriggerRegistry 骨架**、**SearchBackend / gateway / auth / peer 接口定义**、**avoidTop=140pt 常量**、**islandEnabled 设置位与常驻岛窗口骨架（仅结构，无功能）** | 无 | Alt+Space（冲突时自动回退）唤出空 HUD；托盘图标可见；两套热键后端编译通过；command 在 hud/panel 中均可 invoke | `cargo check` 跨平台模块编译通过；`MacBackend` 骨架未破坏 | 中 |
+| M1 | 调度器与纯本地能力 | 状态机五态互转、启动器网格、计算器卡片（**第一条竖切**）、IME 组词处理、**两态展开动效** | M0 | 五态互转；`2+2` 出卡片、`2+2会议纪要` 不出；展开动效不丢焦点；中文输入法下 Tab/Ctrl+Tab 正常 | 布局不炸 | 中 |
+| M2 | 本地搜索 | Everything FFI、程序搜索、评分层、打开/定位/复制、降级 | M1 | 前 4 字母目标进前 3；未运行 Everything 时降级可用 | mdfind 走同一接口可编译（非验收项） | 高 |
+| M3 | 会话面板与 AI | 独立窗口、DeepSeek 流式、追问、取消、错误重试 | M1 | 面板可拖动、Esc 关闭回焦；首字延迟实测；断网错误态 | 可编译 | 高 |
+| M4 | 翻译 | 触发词、语言自动识别、**全程 HUD 内呈现** | M1 | `fy hello` 在悬浮框出中文结果 | 可编译 | 低 |
+| M5 | 主题与 mac 搜索 | 明暗变量、设置页、mdfind 完善（可迁移性） | M2 | 主题切换无闪烁；设置项持久化 | 设置项在 macOS 可读写 | 低 |
+| M6 | 全量验证 | 逐条验收、阈值校准、打包 | M2–M5 | 验收表 11 条 | — | 中 |
 
 **顺序理由**：
 
@@ -392,14 +394,15 @@ dist/
 | 风险 | 影响 | 对策 |
 |---|---|---|
 | **capability 漏配** | 命令调用运行期被拒，编译期无感 | §3.11 五步清单；新增窗口先写 capability；M0 实机冒烟 |
-| 跨平台写法不一致 | 一端能跑、另一端编译或运行失败 | §3.5 编码约定；Windows 专属代码只集中在 §3.6 列出的文件，Windows 验收机兜底编译 |
+| 跨平台写法不一致 | 一端能跑、另一端编译或运行失败 | §3.5 编码约定；Windows 专属代码只集中在 §3.6 列出的文件，本机 `cargo check` 全量验证 |
+| 全局快捷键在 Windows 被系统占用 | 应用启动失败或唤不出 | 快捷键候选链（Alt+Space → Ctrl+Alt+Space → Alt+Q），注册失败不 panic；托盘与单实例兜底 |
 | 低级键盘钩子被安全软件拦截 | 主唤出方式失效 | 双后端，一键切 Alt+Space；设置页显示当前生效后端 |
 | 钩子丢键或误触 | 复制粘贴时误弹 | 两次 Ctrl 间出现其他键即作废；间隔阈值可调 |
 | 中文输入法吞 Tab / 触发空搜索 | 用户以为功能坏了 | Tab 组词中让给 IME；本地搜索以 composition 结束文本为准；两态展开动效须实测焦点 |
 | Everything 未运行 | 本地模式失效 | 程序搜索兜底 + 明确提示，不做静默失败 |
 | 两个 webview 状态漂移 | 面板与 HUD 显示不一致 | 不共享状态；会话只属于 Panel |
 | WebView2 内存超预期 | 验收不达标 | M6 实测后重定阈值，不拿拍脑袋的数字验收 |
-| 双机同步冲突 | 工程损坏 | git 远端同步源码；坚果云忽略 `.git/`、`node_modules/`、`target/` |
+| 多机/同步冲突 | 工程损坏 | 以 Windows 单机为开发主机；git 远端同步源码；坚果云忽略 `.git/`、`node_modules/`、`target/` |
 | DeepSeek 限流或断网 | AI 功能不可用 | 面板内错误态 + 重试；请求带超时与取消 |
 | **框架搭过头变空转** | 迟迟没有可演示功能 | M0 严格限时，只搭接口与空壳；M1 立即用计算器做竖切验证框架 |
 
@@ -433,7 +436,7 @@ dist/
 | 性能/效率 | Needs attention | 内存阈值待实测；Everything 查询需在工作线程，不阻塞 UI |
 | 可访问性/可用性 | Ready | 全键盘闭环；高对比主题；不用纯色块表达状态 |
 | 可观测性/可维护性 | Needs attention | 需要耗时埋点，否则验收标准无法测量 |
-| 可迁移性（新增） | Ready | 平台差异隔离在 trait 后；macOS 开发、Windows 交付；同源码双端可编译 |
+| 可迁移性（新增） | Ready | 平台差异隔离在 trait 后；Windows 开发+验收，macOS 仅保留可迁移性；同源码双端可编译 |
 
 ## 10. 开放问题与决策
 
@@ -478,8 +481,8 @@ dist/
 **ADR-5：框架先行，P2 只留接口位**
 难以逆转（决定模块边界与注册表设计）；用户明确要求"不要着急完成具体产品"。后果：M0 交付骨架而非功能，用 M1 计算器竖切验证框架后再逐个实现。
 
-**ADR-6：macOS 为开发机、Windows 为交付目标；与岛仔功能分工按"被动看/主动找"**
-平台差异隔离在 trait 后；功能重叠区已拍板：喜鹊不做 AI 额度/待办/音乐，岛仔不做搜索。后果：Windows 专属代码少而集中，由验收机兜底编译；两工具信息不重复。
+**ADR-6：Windows 主机为开发机与验收机，macOS 仅保留可迁移性；与岛仔功能分工按"被动看/主动找"**
+平台差异隔离在 trait 后；功能重叠区已拍板：喜鹊不做 AI 额度/待办/音乐，岛仔不做搜索。后果：Windows 专属代码少而集中，由本机全量 `cargo check` 直接验证；macOS 只做可编译性回归；两工具信息不重复。
 
 **ADR-7：常驻灵动岛态可开关，先留框架位后实现**
 用户 2026-11-23 改判：原分析建议不做常驻收起态，但用户明确要做成类似 iPhone 灵动岛的形态，并在设置中可开/可关（默认关）。它独立于按需唤出的 HUD，仅承载喜鹊自身状态展示，不复制岛仔的信息面；不 fork 岛仔。后果：M0 增加 `islandEnabled` 设置位与窗口/托盘骨架，功能实现排在 v1 验收之后，避免框架搭好后急于堆功能。
@@ -496,7 +499,7 @@ dist/
 
 | 阶段 | 是否必需 | 理由 |
 |---|---|---|
-| 准备/环境 | Yes | 两端工具链、坚果云忽略规则、git 远端（§3.5） |
+| 准备/环境 | Yes | Windows 工具链（Node / Rust MSVC / VS Build Tools / WebView2）、git 远端（§3.5）；macOS 回归环境可选 |
 | 设计/规划 | Yes | 已完成（本文档 + 已整合的素材） |
 | 实现/执行 | Yes | M0–M6，框架先行、逐个实现 |
 | 验证/测试 | Yes | 单测覆盖纯逻辑 + Windows 人工验收 |

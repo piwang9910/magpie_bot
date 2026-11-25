@@ -48,10 +48,10 @@ describe("schedulerReducer (M0 skeleton)", () => {
     expect(state.text).toBe("efy hello");
   });
 
-  it("toggles AI with TOGGLE_AI and returns via BACK_TO_LOCAL", () => {
+  it("toggles AI with TOGGLE_AI (local → ai → local)", () => {
     const ai = schedulerReducer(EMPTY_STATE, { type: "TOGGLE_AI" });
     expect(ai.kind).toBe("ai");
-    const back = schedulerReducer(ai, { type: "BACK_TO_LOCAL" });
+    const back = schedulerReducer(ai, { type: "TOGGLE_AI" });
     expect(back.kind).toBe("local");
     expect(schedulerReducer(back, { type: "TOGGLE_AI" }).kind).toBe("ai");
   });
