@@ -67,7 +67,7 @@ export type HotkeyBackendKind =
 "hook" | 
 /**  RegisterHotKey：Alt+Space（Windows） */
 "reghotkey" | 
-/**  开发机后端（macOS） */
+/**  macOS 平台后端（保留可迁移性） */
 "mac";
 
 /**  流式聊天消息的状态。 */

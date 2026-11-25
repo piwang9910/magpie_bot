@@ -9,5 +9,7 @@ src-tauri/gen/
 
 # editor / OS
 .DS_Store
+Thumbs.db
+desktop.ini
 .idea/
 .vscode/

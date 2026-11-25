@@ -1,7 +1,8 @@
 # M0 阶段验收记录：骨架与框架先行
 
 > 对应 [PLAN.md](./PLAN.md) §4 M0 行、§3.10 里程碑门禁。
-> 日期：2026-11-23（开发机：macOS，Apple Silicon；Rust 1.100.0 / Node 22.23.1）
+> 日期：2026-11-23（**历史记录 · macOS 时期**：开发机 macOS，Apple Silicon；Rust 1.100.0 / Node 22.23.1）
+> 开发环境已于 2026-11-25 更正为 Windows 主机开发+验收，Windows 复验结果见 §五。
 
 ## 一、M0 范围（按 PLAN §4 / §3.6 逐项对照）
 
@@ -31,7 +32,7 @@
   - `evidence/M0-hud.png`（660×140，空态：输入框 + "骨架就绪 · 启动器网格将在 M1 接入"）
   - `evidence/M0-panel.png`（500×680，空壳：会话占位 + Esc 关闭提示 + 追问输入位）
 - 唤出路径：Alt+Space 全局快捷键 → `window::show_hud`；托盘左键与单实例二次启动亦唤出 HUD。
-- 注：截图为 WebView 入口在无头浏览器的渲染；macOS 图形会话下 `screencapture` 不可用（无显示器），故未附原生窗口截图。Windows 实机验收留在 M6。
+- 注：截图为 WebView 入口在无头浏览器的渲染；macOS 图形会话下 `screencapture` 不可用（无显示器），故该轮未附原生窗口截图。原生窗口实机验收改在 Windows 主机完成（见 §五）。
 
 ### 2. 单测绿
 
@@ -46,10 +47,11 @@ npm run build (tsc --noEmit && vite build)
   → 通过，两个入口均产出；tsc strict 无错
 ```
 
-### 3. 对端编译通过
+### 3. 全量编译通过（原「对端编译通过」）
 
 - macOS `cargo check` 通过（覆盖全部跨平台模块）。
-- Windows 专属代码仅存在于 `hotkey/win` 模块与 `window.rs` 的 `cfg(windows)` 分支，均为骨架且不含 Win32 FFI 调用；Windows 验收机 `cargo check`（全量）尚待在交付机上执行，本记录不伪造该项。
+- Windows 专属代码仅存在于 `hotkey` 的 `cfg(windows)` 分支与 `window.rs` 的 `cfg(windows)` 分支，均为骨架且不含 Win32 FFI 调用。
+- 开发环境更正后，Windows 主机已执行**全量** `cargo check`（含 `cfg(windows)` 分支），结果见 §五；macOS 降级为可迁移性回归。
 - 双端依赖未使用任何 POSIX 专属命令；`.gitattributes` 固定 `eol=lf`。
 
 ### 4. 实测数字
@@ -62,16 +64,41 @@ npm run build (tsc --noEmit && vite build)
 - 热键后端仍是骨架：双击 Ctrl（HookBackend）未实现低级键盘钩子；M0 用 Alt+Space 全局快捷键保证可演示。
 - 常驻灵动岛态只有设置位与 label 常量，没有窗口；按 ADR-7 在 v1 验收后实现。
 - Panel 会话不落盘、流式输出未接；M3 实现。
-- Windows 实机验收（钩子与杀软兼容、多屏、DPI、Everything）不在本机完成。
+- Windows 实机验收（钩子与杀软兼容、多屏、DPI、Everything）已在 Windows 主机完成基础冒烟，深度验收留 M6。
 
 ## 四、复现命令
 
-```bash
+```powershell
 cd 火柴复现工程
 npm ci
 cargo check --manifest-path src-tauri/Cargo.toml
 cargo test  --manifest-path src-tauri/Cargo.toml
 npm run test
 npm run build
-npm run tauri dev     # 在图形会话中；Alt+Space 唤出 HUD
+npm run tauri dev     # 首选 Alt+Space；被系统占用时按候选链回退（Ctrl+Alt+Space → Alt+Q），日志写明生效键
 ```
+
+## 五、Windows 主机复验（2026-11-25）
+
+开发环境更正后，在 Windows 主机（Node 24.22.1 / npm 11.19.1 / Rust 1.100.0 MSVC / VS 2022 Build Tools / WebView2 158）重跑全链路。
+
+| 步骤 | 命令 | 结果 |
+|---|---|---|
+| 依赖安装 | `npm ci` | 通过，48 个包，0 漏洞；`@rolldown/binding-win32-x64-msvc`、`@tauri-apps/cli-win32-x64-msvc` 就位 |
+| 前端单测 | `npm run test` | 通过，2 文件 / 14 用例 |
+| 前端构建 | `npm run build` | 通过，`dist/index.html`、`dist/panel.html` 均产出 |
+| 全量编译 | `cargo check --manifest-path src-tauri/Cargo.toml` | 通过，0 error（含 `cfg(target_os="windows")` 分支，这是 macOS 时期无法验证的部分） |
+| Rust 单测 | `cargo test --manifest-path src-tauri/Cargo.toml` | 通过，11 passed；`export_bindings` 重新生成 `src/core/ipc/bindings.ts` |
+| 开发模式 | `npm run tauri dev` | 启动成功，无 panic，HUD/Panel 入口正常加载 |
+| 实机冒烟 | `magpie-bot.exe` | 见下 |
+
+实机冒烟结论：
+
+1. **Alt+Space 与 Windows 冲突已确认**：注册返回 `HotKey already registered: HotKey { mods: Modifiers(ALT), key: Space, id: 65598 }`（系统窗口菜单占用）。已改为运行期候选链注册，自动回退到 **Ctrl+Alt+Space** 成功，应用不再因快捷键冲突 panic。
+2. **HUD 唤出已验证**：进程窗口枚举显示 HUD 初始 `visible=False`（656×104）；二次启动触发单实例回调后变为 `visible=True`，第二实例正常退出。
+3. **托盘**：托盘图标由 1×1 透明占位改为真实图标（1×1 仅在解码失败时兜底），Windows 通知区域可见。
+4. **窗口创建无异常**：HUD 与 Panel 仍在启动期按配置创建，未出现 WebView2 环境初始化失败。
+
+未在本轮自动验证、需人工确认的交互项（快捷键注入与截图受自动化策略限制）：Tab 切 AI 态、Esc 收起 HUD、面板内的追问/取消。建议在 `npm run tauri dev` 下人工过一遍。
+
+> 环境提示：WebView2 需要写入 `%LOCALAPPDATA%\com.magpie.assistant`，在受限沙箱中运行会得到 `ERROR_BUSY (0x800700AA)`。这是运行环境限制，不是应用缺陷；在正常桌面会话下直接运行或 `npm run tauri dev` 即可。

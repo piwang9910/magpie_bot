@@ -83,7 +83,7 @@ pub enum HotkeyBackendKind {
     Hook,
     /// RegisterHotKey：Alt+Space（Windows）
     Reghotkey,
-    /// 开发机后端（macOS）
+    /// macOS 平台后端（保留可迁移性）
     Mac,
 }
 
