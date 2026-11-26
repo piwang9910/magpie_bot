@@ -57,7 +57,7 @@ last_updated: 2026-11-23
 │  launch      打开 / 定位 / 复制路径                  │
 │  gateway     DeepSeek 流式、Key 存取、取消令牌        │
 │  auth        Identity trait（v1 只有本地身份）        │
-│  peer        PeerService trait（v1 空实现，仅接口位） │
+│  peer        PeerService 控制面（布局/配对/会话；传输层留白） │
 └──────────────────┬─────────────────────────────────┘
                    │ tauri-specta 生成的类型化 IPC
         ┌──────────┴───────────┐
@@ -189,7 +189,7 @@ interface AppSettings {
     │   │   ├── launch.rs
     │   │   ├── gateway/        # deepseek.rs + secret.rs + cancel.rs
     │   │   ├── auth.rs
-    │   │   ├── peer.rs         # PeerService trait，空实现
+    │   │   ├── peer/           # 控制面：layout / pairing / session
     │   │   ├── settings.rs
     │   │   └── logging.rs
     │   ├── capabilities/       # hud.json / panel.json（权限声明，见 §3.7）
@@ -260,7 +260,7 @@ dist/
 | 模型网关 | `src-tauri/gateway/` | **实现**：DeepSeek 流式 + Key + 取消 + 额度检查点 | 翻译复用；商业化在额度检查点接入 |
 | AI 搜索子代理工具位 | 网关内 v2 位 | **仅占位**：v1 注册零个 Search/Fetch 工具 | v2 暴露工具；硬上限"最多搜 3 次、抓 2 页"防过度调用 |
 | 身份接口 Identity | `src-tauri/auth.rs` | **仅占位**：v1 只有"本机本人"实现，不做登录 UI | 将来权限/商业化挂接 |
-| PeerService | `src-tauri/peer.rs` | **仅占位**：空实现，返回"未启用" | 将来作为独立后台服务接入，不侵入调度器 |
+| PeerService | `src-tauri/peer/` | **实现控制面**：物理毫米布局、匹配码绑定、会话状态机；不联网、不注入输入 | 传输层与平台钩子作为独立后台服务接入，不侵入调度器 |
 | 来电归属号码小程序 | 注册表 + 调度器判定点 | **仅占位**：触发词位 + "整串是否号码"判定点 | 号段库来源/许可待定（REQUIREMENTS §10.1） |
 | 单位转换/数字转大写/二维码 | 注册表占位 | **仅占位** | 后续逐个实现，路由层不改 |
 | 皮肤系统 | CSS 变量 | **明确不做**文件格式/编辑器；只做明暗两套变量 | 切换即换一组变量值 |
